@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "session-sift": {
+      "type": "stdio",
+      "command": "session-sift",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}
