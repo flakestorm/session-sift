@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 import session_sift.cli as cli
-from session_sift.cli import build_parser, run_config, run_refine, run_report, run_status
+from session_sift.cli import build_parser, run_config, run_refine, run_report, run_status, run_verify_mcp
 
 
 @pytest.mark.asyncio
@@ -125,11 +125,26 @@ def test_build_parser_supports_expected_commands() -> None:
     assert args.key == "decay_lambda"
 
 
+@pytest.mark.asyncio
+async def test_cli_verify_mcp_outputs_tools(capsys) -> None:
+    class Args:
+        pass
+
+    exit_code = await run_verify_mcp(Args())
+    captured = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert captured["ok"] is True
+    assert "session_sift_refine" in captured["tools"]
+
+
 @pytest.mark.parametrize(
     ("argv", "expected"),
     [
         (["session-sift", "refine", "session.json"], "refine"),
         (["session-sift", "mcp"], "mcp"),
+        (["session-sift", "verify", "mcp"], "verify-mcp"),
+        (["session-sift", "cloud-api"], "cloud-api"),
         (["session-sift", "status"], "status"),
         (["session-sift", "report", "report.json"], "report"),
         (["session-sift", "config", "show"], "config"),
@@ -146,13 +161,17 @@ def test_cli_main_dispatches(monkeypatch: pytest.MonkeyPatch, argv, expected) ->
         calls.append(expected)
         return 0
 
-    async def fake_mcp(_config):
+    async def fake_mcp(_config, *, transport="stdio"):
         calls.append("mcp")
         return 0
+
+    def fake_cloud(*, host, port, db_path):
+        calls.append("cloud-api")
 
     monkeypatch.setattr(sys, "argv", argv)
     monkeypatch.setattr(cli, "run_refine", fake_async)
     monkeypatch.setattr(cli, "run_status", fake_async)
+    monkeypatch.setattr(cli, "run_verify_mcp", fake_async)
     monkeypatch.setattr(cli, "run_export_dna", fake_async)
     monkeypatch.setattr(cli, "run_import_dna", fake_async)
     monkeypatch.setattr(cli, "mcp_main", fake_mcp)
@@ -160,12 +179,18 @@ def test_cli_main_dispatches(monkeypatch: pytest.MonkeyPatch, argv, expected) ->
     monkeypatch.setattr(cli, "run_config", lambda _args: calls.append("config") or 0)
     monkeypatch.setattr(cli.web, "run_app", lambda *args, **kwargs: calls.append("proxy"))
     monkeypatch.setattr(cli, "create_app", lambda config: object())
+    monkeypatch.setitem(sys.modules, "session_sift.server_cloud", type("CloudModule", (), {"main": fake_cloud}))
 
-    with pytest.raises(SystemExit):
+    if expected == "cloud-api":
         cli.main()
+    else:
+        with pytest.raises(SystemExit):
+            cli.main()
 
     if expected == "mcp":
         assert calls == ["mcp"]
+    elif expected == "verify-mcp":
+        assert calls == ["verify-mcp"]
     elif expected == "report":
         assert calls == ["report"]
     elif expected == "config":
@@ -185,6 +210,36 @@ def test_cli_main_proxy_branch(monkeypatch: pytest.MonkeyPatch) -> None:
     assert calls[0][0] == "app"
     assert calls[0][1].upstream_provider == "anthropic"
     assert calls[1] == ("run", ("127.0.0.1", 9978))
+
+
+def test_cli_main_mcp_stdio_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, object]] = []
+
+    async def fake_mcp(config, *, transport="stdio"):
+        calls.append(("mcp", (config.mcp_host, config.mcp_port, transport)))
+        return 0
+
+    monkeypatch.setattr(sys, "argv", ["session-sift", "mcp"])
+    monkeypatch.setattr(cli, "mcp_main", fake_mcp)
+
+    with pytest.raises(SystemExit):
+        cli.main()
+
+    assert calls == [("mcp", ("127.0.0.1", 9977, "stdio"))]
+
+
+def test_cli_main_cloud_api_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, object]] = []
+
+    def fake_cloud(*, host, port, db_path):
+        calls.append(("cloud", (host, port, db_path)))
+
+    monkeypatch.setattr(sys, "argv", ["session-sift", "cloud-api", "--port", "9988"])
+    monkeypatch.setitem(sys.modules, "session_sift.server_cloud", type("CloudModule", (), {"main": fake_cloud}))
+
+    cli.main()
+
+    assert calls == [("cloud", ("127.0.0.1", 9988, ".session-sift/team-cloud.db"))]
 
 
 def test_cli_main_unknown_command_errors(monkeypatch: pytest.MonkeyPatch) -> None:

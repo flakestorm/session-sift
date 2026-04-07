@@ -1,0 +1,3 @@
+[mcp_servers.session-sift]
+command = "session-sift"
+args = ["mcp"]

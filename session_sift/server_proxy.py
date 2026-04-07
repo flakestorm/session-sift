@@ -12,6 +12,7 @@ from session_sift.providers import extract_stream_text, extract_text_from_json, 
 CONFIG_KEY = web.AppKey("session_sift_config", SessionSiftConfig)
 ENGINE_KEY = web.AppKey("session_sift_engine", SessionSiftEngine)
 SESSION_FACTORY_KEY = web.AppKey("session_factory", object)
+METRICS_KEY = web.AppKey("session_sift_metrics", dict)
 
 
 def _sanitize_headers(headers: web.BaseRequest.headers) -> dict[str, str]:
@@ -26,6 +27,7 @@ async def proxy_handler(request: web.Request) -> web.StreamResponse:
     config = request.app[CONFIG_KEY]
     engine = request.app[ENGINE_KEY]
     session_factory = request.app[SESSION_FACTORY_KEY]
+    metrics = request.app[METRICS_KEY]
     body = await request.json()
     refined, report = await engine.refine(body.get("messages", []))
     body["messages"] = refined
@@ -33,6 +35,11 @@ async def proxy_handler(request: web.Request) -> web.StreamResponse:
         request.headers.get("X-Session-Sift-Upstream-Provider", config.upstream_provider)
     )
     upstream_path, payload = normalize_request(provider, request.path, body)
+    metrics["requests_handled"] += 1
+    metrics["last_provider"] = provider.value
+    metrics["last_upstream_path"] = upstream_path
+    metrics["last_savings_pct"] = round(report.savings_pct, 3)
+    metrics["last_turn"] = report.turn
     headers = _sanitize_headers(request.headers)
     timeout = ClientTimeout(total=config.request_timeout_secs)
     async with session_factory(timeout=timeout) as session:
@@ -95,6 +102,27 @@ async def proxy_handler(request: web.Request) -> web.StreamResponse:
             )
 
 
+async def health_handler(request: web.Request) -> web.Response:
+    config = request.app[CONFIG_KEY]
+    return web.json_response(
+        {
+            "status": "ok",
+            "service": "session-sift-proxy",
+            "upstream_provider": config.upstream_provider,
+            "upstream_url": config.upstream_url,
+        }
+    )
+
+
+async def status_handler(request: web.Request) -> web.Response:
+    engine = request.app[ENGINE_KEY]
+    metrics = request.app[METRICS_KEY]
+    payload = engine.status()
+    payload["proxy"] = dict(metrics)
+    payload["registry_entries"] = await engine._registry.count_entries()
+    return web.json_response(payload)
+
+
 def create_app(
     config: SessionSiftConfig | None = None,
     engine: SessionSiftEngine | None = None,
@@ -106,6 +134,15 @@ def create_app(
     app[CONFIG_KEY] = runtime_config
     app[ENGINE_KEY] = runtime_engine
     app[SESSION_FACTORY_KEY] = session_factory
+    app[METRICS_KEY] = {
+        "requests_handled": 0,
+        "last_provider": None,
+        "last_upstream_path": None,
+        "last_savings_pct": 0.0,
+        "last_turn": 0,
+    }
+    app.router.add_get("/healthz", health_handler)
+    app.router.add_get("/status", status_handler)
     app.router.add_post("/v1/chat/completions", proxy_handler)
     app.router.add_post("/v1/messages", proxy_handler)
     return app

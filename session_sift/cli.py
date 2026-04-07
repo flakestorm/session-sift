@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from io import StringIO
 from pathlib import Path
 
 from aiohttp import web
@@ -11,6 +12,7 @@ from session_sift.config import SessionSiftConfig
 from session_sift.engine import SessionSiftEngine
 from session_sift.models import SavingsReport
 from session_sift.server_mcp import main as mcp_main
+from session_sift.server_mcp import serve_stdio as mcp_serve_stdio
 from session_sift.server_proxy import create_app
 
 
@@ -48,6 +50,64 @@ async def run_status(_: argparse.Namespace) -> int:
     payload = engine.status()
     payload["registry_entries"] = await engine._registry.count_entries()
     print(json.dumps(payload, indent=2))
+    return 0
+
+
+async def run_verify_mcp(_: argparse.Namespace) -> int:
+    stdin = StringIO(
+        json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {},
+                    "clientInfo": {"name": "session-sift-verify", "version": "0.1.0"},
+                },
+            },
+            separators=(",", ":"),
+        )
+        + "\n"
+        + json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}, separators=(",", ":"))
+        + "\n"
+        + json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}, separators=(",", ":"))
+        + "\n"
+        + json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {"name": "session_sift_status", "arguments": {}},
+            },
+            separators=(",", ":"),
+        )
+        + "\n"
+    )
+    stdout = StringIO()
+
+    await mcp_serve_stdio(SessionSiftConfig.load(), stdin=stdin, stdout=stdout)
+
+    responses = [json.loads(line) for line in stdout.getvalue().splitlines() if line.strip()]
+    initialize = next(item for item in responses if item.get("id") == 1)
+    listing = next(item for item in responses if item.get("id") == 2)
+    status_call = next(item for item in responses if item.get("id") == 3)
+    tool_names = sorted(tool["name"] for tool in listing["result"]["tools"])
+    status_payload = json.loads(status_call["result"]["content"][0]["text"])
+
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "transport": "stdio",
+                "protocol_version": initialize["result"]["protocolVersion"],
+                "server_name": initialize["result"]["serverInfo"]["name"],
+                "tools": tool_names,
+                "status_tool_session_id": status_payload["session_id"],
+            },
+            indent=2,
+        )
+    )
     return 0
 
 
@@ -97,6 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
     refine.add_argument("--report", action="store_true")
 
     mcp = subparsers.add_parser("mcp")
+    mcp.add_argument("--transport", choices=["stdio", "tcp"], default="stdio")
     mcp.add_argument("--host", default="127.0.0.1")
     mcp.add_argument("--port", type=int, default=9977)
 
@@ -106,6 +167,15 @@ def build_parser() -> argparse.ArgumentParser:
     proxy.add_argument("--provider", default="openai")
     proxy.add_argument("--upstream-url", default="https://api.openai.com")
     proxy.add_argument("--enable-pass3", action="store_true")
+
+    cloud_api = subparsers.add_parser("cloud-api")
+    cloud_api.add_argument("--host", default="127.0.0.1")
+    cloud_api.add_argument("--port", type=int, default=9980)
+    cloud_api.add_argument("--db-path", default=".session-sift/team-cloud.db")
+
+    verify = subparsers.add_parser("verify")
+    verify_subparsers = verify.add_subparsers(dest="verify_action", required=True)
+    verify_subparsers.add_parser("mcp")
 
     status = subparsers.add_parser("status")
 
@@ -144,7 +214,7 @@ def main() -> None:
         raise SystemExit(asyncio.run(run_refine(args)))
     if args.command == "mcp":
         config = SessionSiftConfig(mcp_host=args.host, mcp_port=args.port)
-        raise SystemExit(asyncio.run(mcp_main(config)))
+        raise SystemExit(asyncio.run(mcp_main(config, transport=args.transport)))
     if args.command == "proxy":
         config = SessionSiftConfig(
             proxy_host=args.host,
@@ -156,6 +226,18 @@ def main() -> None:
         app = create_app(config)
         web.run_app(app, host=config.proxy_host, port=config.proxy_port)
         return
+    if args.command == "cloud-api":
+        try:
+            from session_sift.server_cloud import main as cloud_main
+        except ImportError as exc:
+            raise SystemExit(
+                "FastAPI cloud dependencies are missing. Install with: pip install -e .[cloud]"
+            ) from exc
+        cloud_main(host=args.host, port=args.port, db_path=args.db_path)
+        return
+    if args.command == "verify":
+        if args.verify_action == "mcp":
+            raise SystemExit(asyncio.run(run_verify_mcp(args)))
     if args.command == "status":
         raise SystemExit(asyncio.run(run_status(args)))
     if args.command == "report":

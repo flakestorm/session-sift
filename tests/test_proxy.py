@@ -53,10 +53,30 @@ async def test_proxy_non_streaming_openclaw_compatible() -> None:
                 ) as response:
                     payload = await response.json()
                     assert payload["choices"][0]["message"]["content"] == "echo:3"
+
+                async with session.get(f"{proxy_url}/status") as status_response:
+                    status_payload = await status_response.json()
+                    assert status_payload["proxy"]["requests_handled"] == 1
+                    assert status_payload["proxy"]["last_provider"] == "openclaw"
         finally:
             await proxy_runner.cleanup()
     finally:
         await upstream_runner.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_proxy_health_endpoint() -> None:
+    config = SessionSiftConfig(upstream_provider="openclaw", upstream_url="http://localhost:3000")
+    engine = SessionSiftEngine(config)
+    runner, url = await _start_site(create_app(config, engine))
+    try:
+        async with ClientSession() as session:
+            async with session.get(f"{url}/healthz") as response:
+                payload = await response.json()
+                assert payload["status"] == "ok"
+                assert payload["upstream_provider"] == "openclaw"
+    finally:
+        await runner.cleanup()
 
 
 @pytest.mark.asyncio

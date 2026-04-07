@@ -8,7 +8,7 @@
 
 **Context management middleware for AI agents — strips transcript rot before it reaches the model.**
 
-[Quickstart](docs/quickstart.md) · [Examples](docs/examples.md) · [Integrations](docs/integrations.md) · [CLI Reference](docs/cli-reference.md) · [Configuration](docs/configuration.md) · [Proxy OpenAPI](docs/openapi-proxy.yaml) · [Benchmarks](docs/performance-baseline.md) · [Contributing](CONTRIBUTING.md)
+[Quickstart](docs/quickstart.md) · [MCP Guide](docs/mcp-integration.md) · [OpenClaw Guide](docs/openclaw-integration.md) · [Examples](docs/examples.md) · [Integrations](docs/integrations.md) · [CLI Reference](docs/cli-reference.md) · [Configuration](docs/configuration.md) · [Proxy OpenAPI](docs/openapi-proxy.yaml) · [Benchmarks](docs/performance-baseline.md) · [Contributing](CONTRIBUTING.md)
 
 ---
 
@@ -177,9 +177,9 @@ pip install session-sift
 session-sift refine session.json --output refined.json --report
 ```
 
-**Option 2 — Proxy mode (transparent, zero code changes):**
+**Option 2 — Proxy mode:**
 
-Point Session Sift in front of your upstream, then point your agent at `localhost:9978` instead of the real API:
+Use proxy mode when your client lets you change its upstream `base_url` or API endpoint. Point the client at `localhost:9978` instead of the real API:
 
 ```bash
 # OpenAI / OpenAI-compatible
@@ -195,15 +195,37 @@ session-sift proxy --provider google --upstream-url https://your-endpoint.exampl
 session-sift proxy --provider openclaw --upstream-url http://localhost:3000
 ```
 
-Your agent keeps using its normal API calls. Session Sift prunes transparently. **No code changes required.**
+Your agent keeps using its normal API calls, but only if the client supports a custom API endpoint. If the client does not let you change the upstream URL, proxy mode will not see any traffic.
 
-**Option 3 — MCP server (for Cursor, Claude Code, Codex, Windsurf, Roo):**
+**Option 3 — MCP server (primary path for Claude Code, Codex, Cursor-style runtimes):**
 
 ```bash
-session-sift mcp --host 127.0.0.1 --port 9977
+session-sift mcp
 ```
 
-Configure your agent runtime to point at the local MCP server. The agent can then call `session_sift_refine` as a native tool — it decides when to prune based on its own token count signals.
+Use MCP mode when the client supports custom MCP servers and tool calls. Session Sift now speaks the standard MCP lifecycle and tools protocol over stdio, which is the primary transport used by MCP-native clients. Configure the client to launch `session-sift mcp` as a local MCP server process.
+
+Recommended packaged-install MCP command after `pip install session-sift`:
+
+```json
+{
+  "mcpServers": {
+    "session-sift": {
+      "command": "session-sift",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+If the client cannot resolve `session-sift` on PATH, use `python -m session_sift mcp` or an absolute interpreter path instead.
+
+Smoke test the MCP handshake locally:
+
+```bash
+session-sift verify mcp
+```
 
 **Option 4 — Python SDK (embed in your own agent loop):**
 
@@ -258,7 +280,26 @@ The next session starts warm. The agent knows your project. No repetition.
 
 ## Integrations
 
-### Proxy (zero code change, all providers)
+### Primary integration targets
+
+- **MCP** for Claude Code, Codex, and Cursor-style runtimes
+- **OpenClaw proxy** for cost-sensitive OpenAI-compatible gateway deployments
+
+### What each client needs
+
+| Client / Runtime | Works through proxy? | Works through MCP? | What you need to configure |
+|---|---|---|---|
+| OpenAI-compatible clients | Yes | No | Change `base_url` to `http://127.0.0.1:9978` |
+| OpenClaw | Yes | No | This is the primary proxy integration target |
+| Cursor | Maybe | Yes | MCP over stdio is the intended path |
+| Claude Code | Maybe | Yes | MCP over stdio is the intended path |
+| Windsurf / Roo Code | Maybe | Yes | MCP is the intended path unless you have a verified custom endpoint path |
+| Codex | Yes | Yes | Prefer MCP over stdio; proxy remains available when Codex is acting as an API client |
+| GitHub Copilot Chat in VS Code | No | Not verified | Running Session Sift locally does not automatically intercept Copilot traffic |
+
+Session Sift is middleware. It only works when the client is explicitly configured to send traffic through the proxy or to call the MCP server.
+
+### Proxy
 
 | Provider | Command |
 |---|---|
@@ -267,27 +308,56 @@ The next session starts warm. The agent knows your project. No repetition.
 | Google | `session-sift proxy --provider google --upstream-url https://your-endpoint` |
 | OpenClaw | `session-sift proxy --provider openclaw --upstream-url http://localhost:3000` |
 
-Change your agent's `base_url` to `http://127.0.0.1:9978`. That is the only change.
+Use this only with clients that let you override the upstream endpoint. Change the client's `base_url` to `http://127.0.0.1:9978`.
 
-### MCP (Cursor, Claude Code, Windsurf, Roo Code)
+For OpenClaw specifically, see [docs/openclaw-integration.md](docs/openclaw-integration.md).
+
+### MCP
 
 ```bash
-session-sift mcp --host 127.0.0.1 --port 9977
+session-sift mcp
 ```
 
-Then in your MCP config (`.cursor/mcp.json` or equivalent):
+Then in your MCP config (`.mcp.json`, `.cursor/mcp.json`, Codex config, or equivalent), register a local stdio server that launches `session-sift mcp`.
+
+Example config shape:
 
 ```json
 {
   "mcpServers": {
     "session-sift": {
-      "url": "http://127.0.0.1:9977"
+      "command": "session-sift",
+      "args": ["mcp"],
+      "env": {}
     }
   }
 }
 ```
 
-The tool `session_sift_refine` becomes available to the agent. It calls it autonomously when context gets heavy.
+This is the recommended template for users who installed Session Sift with `pip install session-sift`.
+
+If the client does not inherit a PATH that contains the `session-sift` executable, fall back to:
+
+```json
+{
+  "mcpServers": {
+    "session-sift": {
+      "command": "python",
+      "args": ["-m", "session_sift", "mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+Use this path for runtimes such as Claude Code, Codex, Cursor, Windsurf, and Roo Code when they support custom MCP server registration. The tools `session_sift_refine`, `session_sift_status`, and `session_sift_export_dna` become available to the client.
+
+For exact Claude Code and Codex setup commands, see [docs/mcp-integration.md](docs/mcp-integration.md).
+
+Checked-in example configs:
+
+- Claude Code / project MCP config: [.mcp.json](.mcp.json)
+- Codex config: [.codex/config.toml](.codex/config.toml)
 
 ### Python SDK
 

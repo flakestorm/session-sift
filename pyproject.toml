@@ -28,14 +28,23 @@ dependencies = [
 session-sift = "session_sift.cli:main"
 
 [project.optional-dependencies]
+cloud = [
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.34,<1",
+    "httpx>=0.28,<1",
+]
+
 dev = [
     "build>=1.2,<2",
+    "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
     "pytest>=8.3,<9",
     "pytest-asyncio>=0.24,<1",
+    "uvicorn>=0.34,<1",
 ]
 
 [tool.setuptools]
-packages = ["session_sift", "session_sift.passes"]
+packages = ["session_sift", "session_sift.cloud", "session_sift.passes"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

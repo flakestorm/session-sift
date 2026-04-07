@@ -32,6 +32,7 @@ class SessionSiftEngine:
         self._history: list[dict] = []
         self._last_annotated: list[dict] = []
         self._total_savings = 0
+        self._last_report: SavingsReport | None = None
 
     async def refine(
         self, messages: list[dict], force_pass3: bool = False
@@ -79,16 +80,20 @@ class SessionSiftEngine:
             session_id=self._registry.session_id,
         )
         self._total_savings += report.total_savings
+        self._last_report = report
         return refined, report
 
     def status(self) -> dict:
-        return {
+        payload = {
             "turn_count": self._turn_counter,
             "session_id": self._registry.session_id,
             "registry_path": self.config.registry_path,
             "total_savings_tokens": self._total_savings,
             "history_entries": len(self._history),
         }
+        if self._last_report is not None:
+            payload["last_report"] = self._last_report.to_dict()
+        return payload
 
     async def append_turn(self, message: dict) -> None:
         async with self._lock:
