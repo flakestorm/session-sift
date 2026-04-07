@@ -1,0 +1,64 @@
+{
+  "name": "structural_pruning",
+  "description": "Representative long session with file-tree, install logs, large JSON, and long code fence artifacts.",
+  "config": {
+    "pass3_enabled": false,
+    "recency_window": 1
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a coding agent. Keep TODO and FIXME markers intact."
+    },
+    {
+      "role": "user",
+      "content": "Please inspect the repository and summarize what matters."
+    },
+    {
+      "role": "assistant",
+      "content": "project/\n├── session_sift/\n│   ├── engine.py\n│   ├── server_proxy.py\n│   └── registry.py\n└── tests/\n"
+    },
+    {
+      "role": "tool",
+      "content": "Collecting aiohttp\nDownloading aiohttp-3.10.0.whl\nDownloading yarl-1.19.0.whl\nBuilding wheel for multidict\nSuccessfully installed aiohttp yarl multidict\nRequirement already satisfied: aiosqlite\n"
+    },
+    {
+      "role": "assistant",
+      "content": "{\n  \"files\": [\n    {\"path\": \"session_sift/engine.py\", \"size\": 1200, \"hash\": \"a1\"},\n    {\"path\": \"session_sift/server_proxy.py\", \"size\": 900, \"hash\": \"b2\"},\n    {\"path\": \"session_sift/registry.py\", \"size\": 1500, \"hash\": \"c3\"},\n    {\"path\": \"tests/test_proxy.py\", \"size\": 700, \"hash\": \"d4\"},\n    {\"path\": \"tests/test_registry.py\", \"size\": 650, \"hash\": \"e5\"},\n    {\"path\": \"docs/oss-spec-tracker.md\", \"size\": 1100, \"hash\": \"f6\"}\n  ],\n  \"notes\": \"This payload is intentionally verbose so the large JSON collapse path is exercised with a realistic repository scan artifact. The goal is to mimic a tool payload that is structurally useful once, but too expensive to resend repeatedly in a long-running session.\",\n  \"stats\": {\n    \"directories\": 12,\n    \"python_files\": 24,\n    \"tests\": 16,\n    \"docs\": 8,\n    \"token_estimate\": 1840\n  }\n}"
+    },
+    {
+      "role": "assistant",
+      "content": "```python\ndef line_01():\n    return 1\ndef line_02():\n    return 2\ndef line_03():\n    return 3\ndef line_04():\n    return 4\ndef line_05():\n    return 5\ndef line_06():\n    return 6\ndef line_07():\n    return 7\ndef line_08():\n    return 8\ndef line_09():\n    return 9\ndef line_10():\n    return 10\ndef line_11():\n    return 11\ndef line_12():\n    return 12\ndef line_13():\n    return 13\ndef line_14():\n    return 14\ndef line_15():\n    return 15\ndef line_16():\n    return 16\ndef line_17():\n    return 17\ndef line_18():\n    return 18\ndef line_19():\n    return 19\ndef line_20():\n    return 20\ndef line_21():\n    return 21\ndef line_22():\n    return 22\ndef line_23():\n    return 23\ndef line_24():\n    return 24\ndef line_25():\n    return 25\ndef line_26():\n    return 26\ndef line_27():\n    return 27\ndef line_28():\n    return 28\ndef line_29():\n    return 29\ndef line_30():\n    return 30\ndef line_31():\n    return 31\ndef line_32():\n    return 32\ndef line_33():\n    return 33\ndef line_34():\n    return 34\ndef line_35():\n    return 35\ndef line_36():\n    return 36\ndef line_37():\n    return 37\ndef line_38():\n    return 38\ndef line_39():\n    return 39\ndef line_40():\n    return 40\ndef line_41():\n    return 41\ndef line_42():\n    return 42\ndef line_43():\n    return 43\ndef line_44():\n    return 44\ndef line_45():\n    return 45\n```"
+    },
+    {
+      "role": "assistant",
+      "content": "diff --git a/session_sift/server_proxy.py b/session_sift/server_proxy.py\nindex 1234567..89abcde 100644\n--- a/session_sift/server_proxy.py\n+++ b/session_sift/server_proxy.py\n@@ -10,3 +10,4 @@\n- old line\n+ new line\n context\n"
+    },
+    {
+      "role": "assistant",
+      "content": "{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_01\",\"content\":\"trimmed payload\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "The structural pass should collapse these artifacts and keep only compact markers."
+    },
+    {
+      "role": "user",
+      "content": "Proceed with the condensed result."
+    }
+  ],
+  "expectations": {
+    "min_total_savings": 120,
+    "min_pass1_savings": 120,
+    "markers": [
+      "[SESSION SIFT: file tree collapsed",
+      "[SESSION SIFT: install output collapsed",
+      "[SESSION SIFT: JSON dict collapsed",
+      "[SESSION SIFT: code block collapsed",
+      "[SESSION SIFT: git diff headers collapsed"
+    ],
+    "preserved": [
+      "trimmed payload"
+    ]
+  }
+}

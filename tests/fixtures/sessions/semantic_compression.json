@@ -1,0 +1,71 @@
+{
+  "name": "semantic_compression",
+  "description": "Representative long session where old low-signal turns should be compressed while preserving file paths and numbers.",
+  "config": {
+    "pass3_enabled": true,
+    "recency_window": 1,
+    "pruning_threshold": 0.2
+  },
+  "force_pass3": true,
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a coding agent. TODO markers must remain untouched."
+    },
+    {
+      "role": "assistant",
+      "content": "Great, sounds good. I will now check ./src/app.py and the 500 error for you."
+    },
+    {
+      "role": "assistant",
+      "content": "Okay, understood. I will now look at ./src/app.py and 500 again before I explain."
+    },
+    {
+      "role": "assistant",
+      "content": "Sure, I will now analyze ./src/app.py and 500 one more time."
+    },
+    {
+      "role": "assistant",
+      "content": "Great, sounds good. I will now check ./src/app.py and the 500 error for you."
+    },
+    {
+      "role": "assistant",
+      "content": "Okay, understood. I will now look at ./src/app.py and 500 again before I explain."
+    },
+    {
+      "role": "assistant",
+      "content": "Sure, I will now analyze ./src/app.py and 500 one more time."
+    },
+    {
+      "role": "assistant",
+      "content": "Great, sounds good. I will now check ./src/app.py and the 500 error for you."
+    },
+    {
+      "role": "assistant",
+      "content": "Okay, understood. I will now look at ./src/app.py and 500 again before I explain."
+    },
+    {
+      "role": "assistant",
+      "content": "Sure, I will now analyze ./src/app.py and 500 one more time."
+    },
+    {
+      "role": "user",
+      "content": "Please keep the final answer short."
+    },
+    {
+      "role": "assistant",
+      "content": "Done."
+    }
+  ],
+  "expectations": {
+    "min_total_savings": 20,
+    "min_pass3_savings": 10,
+    "markers": [
+      "[SESSION SIFT SUMMARY - turns"
+    ],
+    "preserved": [
+      "./src/app.py",
+      "500"
+    ]
+  }
+}

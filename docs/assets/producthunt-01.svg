@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#f5ead7"/>
+  <rect x="64" y="64" width="1152" height="592" rx="32" fill="#11302a"/>
+  <text x="110" y="170" font-family="Georgia, serif" font-size="68" fill="#f5ead7">Session Sift</text>
+  <text x="110" y="250" font-family="Verdana, sans-serif" font-size="34" fill="#e7d6b7">Prune transcript rot before it reaches the model.</text>
+  <text x="110" y="360" font-family="Verdana, sans-serif" font-size="30" fill="#9fd7c8">40-60% lower token waste in long sessions</text>
+  <text x="110" y="420" font-family="Verdana, sans-serif" font-size="30" fill="#9fd7c8">Deterministic first: structural + temporal pruning</text>
+  <text x="110" y="480" font-family="Verdana, sans-serif" font-size="30" fill="#9fd7c8">Local proxy, MCP server, and DNA continuity</text>
+</svg>

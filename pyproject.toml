@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "session-sift"
+version = "0.1.0"
+description = "Context management middleware for AI agents"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["ai", "agents", "context", "mcp", "openclaw", "proxy"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "aiohttp>=3.10,<4",
+    "aiosqlite>=0.20,<1",
+]
+
+[project.scripts]
+session-sift = "session_sift.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2,<2",
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.24,<1",
+]
+
+[tool.setuptools]
+packages = ["session_sift", "session_sift.passes"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

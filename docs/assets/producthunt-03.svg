@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#fff4e6"/>
+  <rect x="70" y="70" width="1140" height="580" rx="30" fill="#5a2a27"/>
+  <text x="120" y="165" font-family="Georgia, serif" font-size="62" fill="#fff4e6">Built for agent workflows</text>
+  <text x="120" y="270" font-family="Verdana, sans-serif" font-size="32" fill="#ffd7ae">OpenAI-compatible proxy</text>
+  <text x="120" y="330" font-family="Verdana, sans-serif" font-size="32" fill="#ffd7ae">Anthropic-style /v1/messages support</text>
+  <text x="120" y="390" font-family="Verdana, sans-serif" font-size="32" fill="#ffd7ae">Local Project DNA export and import</text>
+  <text x="120" y="450" font-family="Verdana, sans-serif" font-size="32" fill="#ffd7ae">PyPI package: session-sift</text>
+  <text x="120" y="560" font-family="Verdana, sans-serif" font-size="28" fill="#ffbe7a">See docs/demo-script.md for the 3-minute walkthrough</text>
+</svg>

@@ -1,0 +1,65 @@
+{
+  "name": "resolved_error",
+  "description": "Representative session where an earlier file-specific error becomes stale after a write tool call.",
+  "config": {
+    "pass3_enabled": false
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a debugging agent. Never prune TODO items."
+    },
+    {
+      "role": "user",
+      "content": "The proxy keeps failing when I run the tests."
+    },
+    {
+      "role": "assistant",
+      "content": "I will inspect ./session_sift/server_proxy.py first."
+    },
+    {
+      "role": "tool",
+      "content": "Traceback (most recent call last):\n  File \"./session_sift/server_proxy.py\", line 41, in proxy_handler\n  File \"./session_sift/providers.py\", line 77, in extract_stream_text\nValueError: malformed stream payload for ./session_sift/server_proxy.py"
+    },
+    {
+      "role": "assistant",
+      "content": "The error is tied to ./session_sift/server_proxy.py and should disappear once the file is updated."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "apply_patch",
+          "input": {
+            "path": "./session_sift/server_proxy.py",
+            "patch": "*** Begin Patch\n*** Update File: session_sift/server_proxy.py\n*** End Patch"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "I applied the fix to ./session_sift/server_proxy.py and will rerun the scenario."
+    },
+    {
+      "role": "assistant",
+      "content": "No new Traceback was produced after the edit."
+    },
+    {
+      "role": "user",
+      "content": "Good. Keep the resolution note short."
+    },
+    {
+      "role": "assistant",
+      "content": "Resolved."
+    }
+  ],
+  "expectations": {
+    "min_total_savings": 20,
+    "min_pass2_savings": 20,
+    "markers": [
+      "[SESSION SIFT: resolved error pruned"
+    ]
+  }
+}

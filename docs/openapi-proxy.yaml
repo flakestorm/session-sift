@@ -1,0 +1,110 @@
+openapi: 3.1.0
+info:
+  title: Session Sift Proxy API
+  version: 0.1.0
+  description: |
+    OpenAI-compatible local proxy endpoints exposed by Session Sift.
+servers:
+  - url: http://127.0.0.1:9978
+paths:
+  /v1/chat/completions:
+    post:
+      summary: Proxy OpenAI-compatible chat completion requests through Session Sift.
+      operationId: createChatCompletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+      responses:
+        '200':
+          description: Upstream completion response.
+          headers:
+            X-Session-Sift-Savings:
+              description: Percentage of tokens saved by pruning.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenAIChatCompletionResponse'
+            text/event-stream:
+              schema:
+                type: string
+  /v1/messages:
+    post:
+      summary: Proxy Anthropic-style message requests through Session Sift.
+      operationId: createAnthropicMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+      responses:
+        '200':
+          description: Upstream Anthropic response.
+          headers:
+            X-Session-Sift-Savings:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnthropicMessageResponse'
+            text/event-stream:
+              schema:
+                type: string
+components:
+  schemas:
+    Message:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
+          oneOf:
+            - type: string
+            - type: array
+    ChatCompletionRequest:
+      type: object
+      properties:
+        model:
+          type: string
+        stream:
+          type: boolean
+          default: false
+        max_tokens:
+          type: integer
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+    OpenAIChatCompletionResponse:
+      type: object
+      properties:
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              message:
+                type: object
+                properties:
+                  content:
+                    oneOf:
+                      - type: string
+                      - type: array
+    AnthropicMessageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Session Sift issue guide
+    url: https://github.com/fhumarang/session-sift/blob/main/docs/issue-guide.md
+    about: Read this before opening a bug report or feature request.
